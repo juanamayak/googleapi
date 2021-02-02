@@ -2,11 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\User;
 use Exception;
 use Illuminate\Http\Request;
 use PulkitJalan\Google\Facades\Google;
 use Google_Service_Gmail;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Auth;
 
 class GmailController extends Controller
 {
@@ -15,49 +17,84 @@ class GmailController extends Controller
 
     public function connect(){
         $client = Google::getClient();
+        $client->setAccessType('offline');
+        $client->setApprovalPrompt('force');
 
-        if ($client->isAccessTokenExpired()) {
-            if ($client->getRefreshToken()) {
-                $client->fetchAccessTokenWithRefreshToken($client->getRefreshToken());
-            } else {
-                $authUrl = $client->createAuthUrl();
-                return redirect($authUrl);
-            }
-        }
+        $authUrl = $client->createAuthUrl();
+        return redirect($authUrl);
     }
 
     public function callback(){
         $code = request('code');
+        $userAuth = Auth::user();
+        $user = User::find($userAuth->id);
         $googleClient = Google::getClient();
         $listMessagesCollection = new Collection();
         // Exchange authorization code for an access token.
         $accessToken = $googleClient->fetchAccessTokenWithAuthCode($code);
-        $googleClient->setAccessToken($accessToken);
+        $user->token = json_encode($accessToken);
 
-        dd($googleClient);
-
-        // Check to see if there was an error.
-        if (array_key_exists('error', $accessToken)) {
-            throw new Exception(join(', ', $accessToken));
+        if ($user->update()) {
+            return redirect()->route('gmail.mailbox');
         }
+    }
 
+    public function bandejaEntrada(){
+        $userAuth = Auth::user();
+        $client = Google::getClient();
+        $listMessagesCollection = new Collection();
 
-        #####################################################
+        if ($userAuth->token) {
+            $client->setAccessToken($userAuth->token);
+            if ($client->isAccessTokenExpired()) {
+                if ($client->getRefreshToken()) {
+                    $newToken = $client->fetchAccessTokenWithRefreshToken($client->getRefreshToken());
+                    $user = User::find($userAuth->id);
+                    $user->token = json_encode($newToken);
+                    $user->update();
+                }
+            }
+        } else {
+            return redirect()->route('gmail.connect');
+        }
 
         $gmail = Google::make('gmail');
         $messagesArray = $gmail->users_messages->listUsersMessages($this->user, ['maxResults' => 10])->getMessages();
+
         if ($messagesArray) {
             $messagesCollection = $this->getMessagesCollection($messagesArray, $gmail);
             if ($messagesCollection) {
                 $listMessagesCollection = $this->listMessagesCollection($messagesCollection);
-            } else {
-
             }
-        } else {
-            echo "no hay mensajes";
         }
 
         return view('mails', compact('listMessagesCollection'));
+    }
+
+    /**
+    * Obtiene una id de un mensaje
+    * @return message regresa el mensaje que se quiere visualizar
+    */
+    public function show($id){
+        $userAuth = Auth::user();
+        $client = Google::getClient();
+        $client->setAccessToken($userAuth->token);
+        $gmail = Google::make('gmail');
+
+        $message = $gmail->users_messages->get($this->user, $id);
+
+        // dd($gmail);
+        $payload = $message->getPayload();
+        $body = $payload->getBody();
+        $data = $this->decodeBody($body['data']);
+
+        if (!$data) {
+            $data = $this->validateWhereIsData($data, $payload);
+        }
+
+        // dd($data);
+
+        return view('message-detail', compact('data'));
     }
 
     /**
@@ -88,11 +125,6 @@ class GmailController extends Controller
             foreach ($messages as $message) {
                 $payload = $message->getPayload();
                 $headers = $payload->getHeaders();
-                // $body = $payload->getBody();
-                // $data = $this->decodeBody($body['data']);
-                // if (!$data) {
-                //     $data = $this->validateWhereIsData($data, $payload);
-                // }
 
                 $listMessagesCollection->push((object)[
 					'id'	        => $message->id,
@@ -113,18 +145,25 @@ class GmailController extends Controller
     * @return data regresa el contenido del mensaje
     */
     public function validateWhereIsData($data, $payload){
+        // dd($payload);
+
         $parts = $payload->getParts();
         foreach ($parts as $part) {
+            // dd($part['parts']);
+
             if($part['body']->data) {
                 $data = $this->decodeBody($part['body']->data);
-            } else if($part['parts'] && $data) {
+            } else if($part['parts'] && !$data) {
                 foreach ($part['parts'] as $dataInPart) {
+                    // dd($dataInPart);
                     if($dataInPart['mimeType'] === 'text/plain' && $dataInPart['body']) {
                         $data = $this->decodeBody($dataInPart['body']->data);
                     }
                 }
             }
         }
+
+        // dd($datas);
 
         return $data;
     }

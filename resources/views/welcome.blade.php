@@ -12,8 +12,6 @@
     <body>
         <h1>Google API</h1>
         <a href="{{ route('login') }}">Iniciar sesión</a> |
-        <a href="{{ route('register') }}">Register</a> |
-        <a href="{{ route('gmail.connect') }}">Google</a>
-
+        <a href="{{ route('register') }}">Register</a>
     </body>
 </html>

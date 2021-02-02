@@ -16,10 +16,12 @@ Route::get('/', function () {
 
 Route::get('/gmail', 'GmailController@connect')->name('gmail.connect');
 Route::get('/callback', 'GmailController@callback')->name('gmail.callback');
+Route::get('/bandeja', 'GmailController@bandejaEntrada')->name('gmail.mailbox');
+Route::get('/bandeja/correo/{id}', 'GmailController@show')->name('gmail.show');
 
 // Route::get('/gmail', function(){
 //     $googleClient = Google::getClient();
-    
+
 //     if ($googleClient->isAccessTokenExpired()) {
 
 //         if ($googleClient->getRefreshToken()) {
@@ -27,9 +29,9 @@ Route::get('/callback', 'GmailController@callback')->name('gmail.callback');
 //         } else {
 //             $authUrl = $googleClient->createAuthUrl();
 //             return redirect($authUrl);
-//         }   
+//         }
 //     } else {
-      
+
 //     }
 // })->name('gmail.setup');
 
@@ -63,7 +65,7 @@ Route::get('/callback', 'GmailController@callback')->name('gmail.callback');
 //     // $results = $service->users_messages->listUsersMessages($user);
 //     // dd($results);
 
-    
+
 //     // sin adjuntos boletin
 //     $results = $service->users_messages->get($user, '17749cea540a7b17');
 
@@ -84,23 +86,23 @@ Route::get('/callback', 'GmailController@callback')->name('gmail.callback');
 //     // If we didn't find a body, let's look for the parts
 //     if(!$FOUND_BODY) {
 //         $parts = $payload->getParts();
-        
+
 //         foreach ($parts as $part) {
-            
+
 //             if($part['body']->data) {
 //                 $FOUND_BODY = decodeBody($part['body']->data);
 //                 break;
 //             } else if($part['parts'] && !$FOUND_BODY) {
 //                 foreach ($part['parts'] as $p) {
 //                     // replace 'text/html' by 'text/plain' if you prefer
-                    
+
 //                     if($p['mimeType'] === 'text/plain' && $p['body']) {
 //                         $FOUND_BODY = decodeBody($p['body']->data);
 //                         break;
-//                     } 
+//                     }
 //                 }
 //             }
-            
+
 //             if($FOUND_BODY) {
 //                 break;
 //             }

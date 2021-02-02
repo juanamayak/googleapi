@@ -10,10 +10,14 @@
         <link href="https://fonts.googleapis.com/css?family=Nunito:200,600" rel="stylesheet">
     </head>
     <body>
+        @if ($listMessagesCollection->count() > 0)
         @foreach ($listMessagesCollection as $message)
             <ul>
-                <li><a href="">{{ $message->from }} | {{$message->subject}} </a></li>
+                <li><a href="{{ route('gmail.show', ['id' => $message->id]) }}">{{ $message->from }} | {{$message->subject}} </a></li>
             </ul>
         @endforeach
+        @else
+        <p>No hay mensajes</p>
+        @endif
     </body>
 </html>

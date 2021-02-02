@@ -15,6 +15,9 @@
                     @endif
 
                     You are logged in!
+                    <br>
+                    <a href="{{ route('gmail.connect') }}">Google</a>
+                    <a href="{{ route('gmail.mailbox') }}">Bandeja</a>
                 </div>
             </div>
         </div>
