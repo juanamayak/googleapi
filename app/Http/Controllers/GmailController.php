@@ -86,15 +86,42 @@ class GmailController extends Controller
         // dd($gmail);
         $payload = $message->getPayload();
         $body = $payload->getBody();
+        $parts = $payload->getParts();
+
         $data = $this->decodeBody($body['data']);
 
+        // dd($payload->parts);
         if (!$data) {
-            $data = $this->validateWhereIsData($data, $payload);
+            $attachments = $this->getAttachments($id, $parts, $gmail);
+
+            // dd($attachments);
+            $data = $this->validateWhereIsData($data, $payload, $id);
         }
+
+
 
         // dd($data);
 
-        return view('message-detail', compact('data'));
+        return view('message-detail', compact(['data', 'attachments']));
+    }
+
+    public function getAttachments($message_id, $parts, $client) {
+        $attachments = [];
+
+        foreach ($parts as $part) {
+            if (!empty($part->body->attachmentId)) {
+                $attachment = $client->users_messages_attachments->get($this->user, $message_id, $part->body->attachmentId);
+                $attachments[] = [
+                    'filename' => $part->filename,
+                    'mimeType' => $part->mimeType,
+                    'data'     => strtr($attachment->data, '-_', '+/')
+                ];
+            } else if (!empty($part->parts)) {
+                $attachments = array_merge($attachments, $this->getAttachments($message_id, $part->parts, $client));
+            }
+        }
+
+        return $attachments;
     }
 
     /**
@@ -144,8 +171,14 @@ class GmailController extends Controller
     * Busca dentro del payload la información y le asigna un valor a la data
     * @return data regresa el contenido del mensaje
     */
-    public function validateWhereIsData($data, $payload){
+    public function validateWhereIsData($data, $payload, $messageId){
         // dd($payload);
+        // $datas = new Collection();
+        // $docs = new Collection();
+        // $userAuth = Auth::user();
+        // $client = Google::getClient();
+        // $client->setAccessToken($userAuth->token);
+        // $gmail = Google::make('gmail');
 
         $parts = $payload->getParts();
         foreach ($parts as $part) {
@@ -161,11 +194,68 @@ class GmailController extends Controller
                     }
                 }
             }
+
+            // if($part['mimeType'] === 'application/pdf' && $part['body']) {
+            //     $data = $part['body']->attachmentId;
+            //     $name = $part->filename;
+            //     $tmp = [
+            //         'attachmentId' => $data,
+            //         'filename' => $name
+            //     ];
+            //     $datas->push($tmp);
+
+            //     // dd($datas);
+            // }
+
+            // if($part['mimeType'] === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' && $part['body']) {
+            //     $data = $part['body']->attachmentId;
+            //     $name = $part->filename;
+            //     $tmp = [
+            //         'attachmentId' => $data,
+            //         'filename' => $name
+            //     ];
+            //     $datas->push($tmp);
+
+            //     // dd($datas);
+            // }
+
+            // if($part['mimeType'] === 'application/vnd.openxmlformats-officedocument.presentationml.presentation' && $part['body']) {
+            //     $data = $part['body']->attachmentId;
+            //     $name = $part->filename;
+            //     $tmp = [
+            //         'attachmentId' => $data,
+            //         'filename' => $name
+            //     ];
+            //     $datas->push($tmp);
+
+            //     // dd($datas);
+            // }
         }
+
+
+        // foreach ($datas as $data) {
+        //     // dd($data['filename']);
+        //     $attachment = $gmail->users_messages_attachments->get($this->user, $messageId, $data['attachmentId']);
+        //     $datas = strtr($attachment->data, array('-' => '+', '_' => '/'));
+        //     $decodedMessage = base64_decode($datas);
+        //     $tmp = [
+        //         'attachment' => $decodedMessage,
+        //         'filename' => $data['filename']
+        //     ];
+        //     $docs->push($tmp);
+
+        //     // foreach ($docs as $a) {
+        //     //     dd($a['filename']);
+        //     // }
+        //     // dd($docs->filename);
+        //     // return view('message-detail', compact('data'));
+        // }
+
 
         // dd($datas);
 
         return $data;
+
     }
 
 
