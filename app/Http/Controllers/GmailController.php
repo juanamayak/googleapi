@@ -73,7 +73,8 @@ class GmailController extends Controller
         $separado_por_comas = implode(",", $contacts->toArray());
         // dd($separado_por_comas);
 
-        $messagesArray = $gmail->users_messages->listUsersMessages($this->user, ['maxResults' => 20, 'q' => '{'.$separado_por_comas.'}'])->getMessages();
+        $messagesArray = $gmail->users_messages->listUsersMessages($this->user, ['maxResults' => 20])->getMessages();
+        // $messagesArray = $gmail->users_messages->listUsersMessages($this->user, ['maxResults' => 20, 'q' => '{'.$separado_por_comas.'}'])->getMessages();
 
         if ($messagesArray) {
             $messagesCollection = $this->getMessagesCollection($messagesArray, $gmail);
