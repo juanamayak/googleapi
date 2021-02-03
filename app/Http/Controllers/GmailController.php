@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\User;
 use Exception;
-use Illuminate\Http\Request;
 use PulkitJalan\Google\Facades\Google;
 use Google_Service_Gmail;
 use Illuminate\Support\Collection;
@@ -12,7 +11,6 @@ use Illuminate\Support\Facades\Auth;
 
 class GmailController extends Controller
 {
-
     public $user = 'me';
 
     public function connect(){
@@ -25,13 +23,13 @@ class GmailController extends Controller
     }
 
     public function callback(){
-        $code = request('code');
         $userAuth = Auth::user();
+        $code = request('code');
         $user = User::find($userAuth->id);
-        $googleClient = Google::getClient();
-        $listMessagesCollection = new Collection();
+        $client = Google::getClient();
+
         // Exchange authorization code for an access token.
-        $accessToken = $googleClient->fetchAccessTokenWithAuthCode($code);
+        $accessToken = $client->fetchAccessTokenWithAuthCode($code);
         $user->token = json_encode($accessToken);
 
         if ($user->update()) {
@@ -59,7 +57,23 @@ class GmailController extends Controller
         }
 
         $gmail = Google::make('gmail');
-        $messagesArray = $gmail->users_messages->listUsersMessages($this->user, ['maxResults' => 10])->getMessages();
+
+        $filter = [
+            'from' => 'andyrat1996@gmail.com'
+        ];
+
+        // $results = $gmail->users_labels->listUsersLabels($this->user);
+        // dd($results);
+        $contacts = new Collection();
+
+        $correo = 'andyrat1996@gmail.com';
+        $correoDos = 'amayajuan95@gmail.com';
+        $contacts->push('from:'.$correo);
+        $contacts->push('from:'.$correoDos);
+        $separado_por_comas = implode(",", $contacts->toArray());
+        // dd($separado_por_comas);
+
+        $messagesArray = $gmail->users_messages->listUsersMessages($this->user, ['maxResults' => 20, 'q' => '{'.$separado_por_comas.'}'])->getMessages();
 
         if ($messagesArray) {
             $messagesCollection = $this->getMessagesCollection($messagesArray, $gmail);
@@ -89,11 +103,11 @@ class GmailController extends Controller
         $parts = $payload->getParts();
 
         $data = $this->decodeBody($body['data']);
+        $attachments = [];
 
         // dd($payload->parts);
         if (!$data) {
             $attachments = $this->getAttachments($id, $parts, $gmail);
-
             // dd($attachments);
             $data = $this->validateWhereIsData($data, $payload, $id);
         }
@@ -111,17 +125,35 @@ class GmailController extends Controller
         foreach ($parts as $part) {
             if (!empty($part->body->attachmentId)) {
                 $attachment = $client->users_messages_attachments->get($this->user, $message_id, $part->body->attachmentId);
+                // dd($attachment);
+
                 $attachments[] = [
                     'filename' => $part->filename,
                     'mimeType' => $part->mimeType,
                     'data'     => strtr($attachment->data, '-_', '+/')
                 ];
+
+                // if($attachment){
+                //     $filename = $part->filename;
+
+                //     if(empty($filename)) $filename = $attachment['filename'];
+
+                //     if(empty($filename)) $filename = time() . ".dat";
+
+                //     $fp = fopen("./" . time() . "-" . $filename, "w+");
+                //     dd(fwrite($fp, $attachment['data']));
+                //     fclose($fp);
+                // }
             } else if (!empty($part->parts)) {
                 $attachments = array_merge($attachments, $this->getAttachments($message_id, $part->parts, $client));
             }
         }
 
         return $attachments;
+    }
+
+    public function downloadAttachment($attachmentId){
+        dd($attachmentId);
     }
 
     /**

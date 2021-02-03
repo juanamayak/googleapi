@@ -22,7 +22,7 @@ return [
     'redirect_uri' => env('GOOGLE_REDIRECT', ''),
     'scopes' => ['https://mail.google.com'],
     'access_type' => 'offline',
-    'approval_prompt' => 'force',
+    'approval_prompt' => 'select_account consent',
 
     /*
     |----------------------------------------------------------------------------

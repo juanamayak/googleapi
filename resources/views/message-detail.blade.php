@@ -14,7 +14,9 @@
 
         @if (count($attachments) > 0)
             @foreach ($attachments as $attachment)
-                <a href="{{ $attachment['data'] }}">{{ $attachment['filename'] }}</a>
+                {{-- <a href="{{ route('gmail.attachment', ['id' => $attachment['data']]) }}">{{ $attachment['filename'] }}</a> --}}
+                <a href="data:{{ $attachment['mimeType'] }};base64,{{ $attachment['data'] }}" download="{{ $attachment['filename'] }}">{{ $attachment['filename'] }}</a>
+                <br>
             @endforeach
         @else
             <p>No hay archivos</p>
