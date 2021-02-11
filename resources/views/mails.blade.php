@@ -13,7 +13,7 @@
         @if ($listMessagesCollection->count() > 0)
         @foreach ($listMessagesCollection as $message)
             <ul>
-                <li><a href="{{ route('gmail.show', ['id' => $message->id]) }}">{{ $message->from }} | {{$message->subject}} </a></li>
+                <li><a href="{{ route('gmail.show', ['id' => $message->id, 'from' => $message->from]) }}">{{ $message->from }} | {{$message->subject}} </a></li>
             </ul>
         @endforeach
         @else

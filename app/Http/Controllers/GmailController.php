@@ -3,11 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\User;
-use Exception;
-use PulkitJalan\Google\Facades\Google;
-use Google_Service_Gmail;
+use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Mail;
+use PulkitJalan\Google\Facades\Google;
 
 class GmailController extends Controller
 {
@@ -43,14 +43,20 @@ class GmailController extends Controller
         $listMessagesCollection = new Collection();
 
         if ($userAuth->token) {
-            $client->setAccessToken($userAuth->token);
-            if ($client->isAccessTokenExpired()) {
-                if ($client->getRefreshToken()) {
-                    $newToken = $client->fetchAccessTokenWithRefreshToken($client->getRefreshToken());
-                    $user = User::find($userAuth->id);
-                    $user->token = json_encode($newToken);
-                    $user->update();
+            // dd($userAuth->token);
+            try {
+                $client->setAccessToken($userAuth->token);
+                if ($client->isAccessTokenExpired()) {
+                    if ($client->getRefreshToken()) {
+                        $newToken = $client->fetchAccessTokenWithRefreshToken($client->getRefreshToken());
+                        $user = User::find($userAuth->id);
+                        $user->token = json_encode($newToken);
+                        $user->update();
+                    }
                 }
+            } catch (\Throwable $th) {
+                echo('Error en el token');
+                die();
             }
         } else {
             return redirect()->route('gmail.connect');
@@ -76,12 +82,17 @@ class GmailController extends Controller
         $messagesArray = $gmail->users_messages->listUsersMessages($this->user, ['maxResults' => 20])->getMessages();
         // $messagesArray = $gmail->users_messages->listUsersMessages($this->user, ['maxResults' => 20, 'q' => '{'.$separado_por_comas.'}'])->getMessages();
 
+        // dd($messagesArray);
+
         if ($messagesArray) {
             $messagesCollection = $this->getMessagesCollection($messagesArray, $gmail);
+            // dd($messagesCollection);
             if ($messagesCollection) {
                 $listMessagesCollection = $this->listMessagesCollection($messagesCollection);
             }
         }
+
+        // dd($listMessagesCollection);
 
         return view('mails', compact('listMessagesCollection'));
     }
@@ -90,7 +101,7 @@ class GmailController extends Controller
     * Obtiene una id de un mensaje
     * @return message regresa el mensaje que se quiere visualizar
     */
-    public function show($id){
+    public function show($id, $from){
         $userAuth = Auth::user();
         $client = Google::getClient();
         $client->setAccessToken($userAuth->token);
@@ -113,11 +124,7 @@ class GmailController extends Controller
             $data = $this->validateWhereIsData($data, $payload, $id);
         }
 
-
-
-        // dd($data);
-
-        return view('message-detail', compact(['data', 'attachments']));
+        return view('message-detail', compact(['data', 'attachments', 'from']));
     }
 
     public function getAttachments($message_id, $parts, $client) {
@@ -185,6 +192,15 @@ class GmailController extends Controller
             foreach ($messages as $message) {
                 $payload = $message->getPayload();
                 $headers = $payload->getHeaders();
+
+                // $email = $this->getHeader($headers, 'From');
+                // list($partOne, $partTwo) = explode('<', $email);
+                // dd($partTwo);
+                // list($sanitized, $emailSanitized) = explode('>', $partTwo);
+                // $emailSanitized = $sanitized;
+                // dd($emailSanitized['0']);
+                // $emailSanitized = filter_var($$emailExplode[0], FILTER_SANITIZE_EMAIL);
+                // $sanitized = filter_var($a, FILTER_SANITIZE_EMAIL);
 
                 $listMessagesCollection->push((object)[
 					'id'	        => $message->id,
@@ -318,5 +334,67 @@ class GmailController extends Controller
             return $header['value'];
           }
         }
+    }
+
+    public function reply($to){
+        return view('reply', compact(['to']));
+    }
+
+    public function emailForm(Request $request){
+        // dd($request->input('to'));
+        $user = Auth::user();
+        $client = Google::getClient();
+        $client->setAccessToken($user->token);
+
+        $from = $user->email;
+        $to = $request->input('to');
+        $subject = $request->input('asunto');
+        $message_email = $request->input('mensaje');
+
+        // dd(serialize($to));
+
+        $message = $this->gmailCreateMessage($from, $to, $subject, $message_email);
+
+        $this->gmailSendMessage($message);
+
+        return redirect()->route('gmail.mailbox');
+
+        // $to_name = 'Crealab';
+        // $to_email = 'crealabplaya@gmail.com';
+        // $data = ['name'=>"Sam Jose", "body" => "Test mail"];
+
+        // Mail::send('emails', $data, function($message) use ($to_name, $to_email) {
+        //     $message->to($to_email, $to_name)->subject('pek');
+        //     $message->from('crealabplaya@gmail.com','Artisans Web');
+        // });
+    }
+
+    public function gmailCreateMessage($from, $to, $subject, $messageText){
+        $message = Google::make('gmail_message');
+
+        $rawMessage = "From: <{$from}>\r\n";
+        $rawMessage .= "To: <{$to}>\r\n";
+        $rawMessage .= 'Subject: =?utf-8?B?' . base64_encode($subject) . "?=\r\n";
+        $rawMessage .= "MIME-Version: 1.0\r\n";
+        $rawMessage .= "Content-Type: text/html; charset=utf-8\r\n";
+        $rawMessage .= 'Content-Transer-Enconding: quoted-printable' . "\r\n\r\n";
+        $rawMessage .= "{$messageText}\r\n";
+
+        $rawM = strtr(base64_encode($rawMessage), array('+' => '-', '/' => '_'));
+        $message->setRaw($rawM);
+
+        return $message;
+    }
+
+    public function gmailSendMessage($message){
+        $service = Google::make('gmail');
+
+        try {
+            $message = $service->users_messages->send($this->user, $message);
+        } catch (\Throwable $th) {
+            print 'Algo paso'. $th->getMessage();
+        }
+
+        return NULL;
     }
 }

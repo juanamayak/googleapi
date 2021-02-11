@@ -10,6 +10,8 @@
         <link href="https://fonts.googleapis.com/css?family=Nunito:200,600" rel="stylesheet">
     </head>
     <body>
+        <a href="{{ route('gmail.mailbox') }}">Regresar</a>
+        <a href="{{ route('gmail.reply', ['to' => $from]) }}">Responder</a>
         <p>{{ $data }}</p>
 
         @if (count($attachments) > 0)

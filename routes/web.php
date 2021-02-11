@@ -17,8 +17,10 @@ Route::get('/', function () {
 Route::get('/gmail', 'GmailController@connect')->name('gmail.connect');
 Route::get('/callback', 'GmailController@callback')->name('gmail.callback');
 Route::get('/bandeja', 'GmailController@bandejaEntrada')->name('gmail.mailbox');
-Route::get('/bandeja/correo/{id}', 'GmailController@show')->name('gmail.show');
+Route::get('/bandeja/correo/{id}/{from}', 'GmailController@show')->name('gmail.show');
 Route::get('/bandeja/correo/archivo/{id}', 'GmailController@downloadAttachment')->name('gmail.attachment');
+Route::get('/respuesta/{to}', 'GmailController@reply')->name('gmail.reply');
+Route::post('/respuesta/enviar', 'GmailController@emailForm')->name('gmail.sendReply');
 
 // Route::get('/gmail', function(){
 //     $googleClient = Google::getClient();
